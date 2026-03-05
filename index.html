@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Noels Mattespel 🦕</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;
+      background: linear-gradient(135deg, #a8edea, #fed6e3);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      user-select: none;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      color: #5b2d8e;
+      text-shadow: 3px 3px 0 #f7c948;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    #level-badge {
+      background: #5b2d8e;
+      color: #f7c948;
+      border-radius: 50px;
+      padding: 6px 20px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      margin-bottom: 18px;
+      display: inline-block;
+    }
+
+    #progress-dots {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #ddd;
+      border: 3px solid #bbb;
+      transition: background 0.3s;
+    }
+    .dot.done-right { background: #2ecc71; border-color: #27ae60; }
+    .dot.done-wrong  { background: #e74c3c; border-color: #c0392b; }
+    .dot.current     { background: #f7c948; border-color: #f39c12; animation: pulse 0.8s infinite alternate; }
+
+    @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.2); } }
+
+    #card {
+      background: white;
+      border-radius: 30px;
+      padding: 36px 28px;
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+
+    #theme-emoji {
+      font-size: 3.5rem;
+      margin-bottom: 6px;
+      display: block;
+      animation: bounce 1s infinite alternate;
+    }
+
+    @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+
+    #visual-row {
+      font-size: 2rem;
+      min-height: 56px;
+      margin: 8px 0 18px;
+      letter-spacing: 3px;
+      line-height: 1.4;
+      word-break: break-all;
+    }
+
+    #question {
+      font-size: 3rem;
+      color: #222;
+      margin-bottom: 28px;
+      font-weight: bold;
+    }
+
+    #options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .opt-btn {
+      font-size: 2.4rem;
+      font-family: inherit;
+      padding: 18px 10px;
+      border-radius: 20px;
+      border: 4px solid transparent;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.2s;
+      background: #f0f0f0;
+      color: #333;
+    }
+    .opt-btn:hover { background: #ffe08a; transform: scale(1.06); }
+    .opt-btn.correct { background: #b6f5c0; border-color: #2ecc71; animation: pop 0.4s ease; }
+    .opt-btn.wrong   { background: #ffc2c2; border-color: #e74c3c; animation: shake 0.4s ease; }
+
+    @keyframes pop   { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+    @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+
+    #feedback {
+      font-size: 1.8rem;
+      min-height: 56px;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+
+    #next-btn {
+      display: none;
+      margin: 16px auto 0;
+      font-size: 1.5rem;
+      font-family: inherit;
+      background: #5b2d8e;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      padding: 14px 36px;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    #next-btn:hover { transform: scale(1.05); }
+
+    /* Summary screen */
+    #summary {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #summary h2 { font-size: 2rem; color: #5b2d8e; }
+    #summary .big { font-size: 3rem; }
+    #summary p { font-size: 1.3rem; color: #555; max-width: 340px; text-align: center; }
+    #summary .level-change { font-size: 1.5rem; font-weight: bold; padding: 10px 24px; border-radius: 20px; }
+    #summary .level-up   { background: #b6f5c0; color: #1a7a3a; }
+    #summary .level-same { background: #fff3cd; color: #7a5500; }
+    #summary .level-down { background: #ffc2c2; color: #7a0000; }
+
+    /* Already played screen */
+    #already-played {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      text-align: center;
+    }
+    #already-played h2 { font-size: 2rem; color: #5b2d8e; }
+    #already-played p  { font-size: 1.3rem; color: #555; }
+
+    /* Confetti */
+    .confetti-piece {
+      position: fixed;
+      width: 14px; height: 14px;
+      border-radius: 3px;
+      animation: fall linear forwards;
+      pointer-events: none;
+      z-index: 999;
+    }
+    @keyframes fall {
+      0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>🌟 Noels Mattespel 🌟</h1>
+<div id="level-badge">Nivå 1</div>
+
+<div id="progress-dots"></div>
+
+<!-- Game card -->
+<div id="card">
+  <span id="theme-emoji">🦕</span>
+  <div id="visual-row"></div>
+  <div id="question">? + ? = ?</div>
+  <div id="options"></div>
+  <div id="feedback"></div>
+  <button id="next-btn" onclick="nextQuestion()">Nästa ➡️</button>
+</div>
+
+<!-- Summary screen -->
+<div id="summary">
+  <h2>Bra jobbat Noel! 🎉</h2>
+  <div class="big" id="summary-emoji">🏆</div>
+  <div id="summary-score"></div>
+  <div id="level-change-msg" class="level-change"></div>
+  <p id="summary-text"></p>
+  <p style="font-size:1rem;color:#999;">Kom tillbaka imorgon kl 17 för nya tal!</p>
+</div>
+
+<!-- Already played today -->
+<div id="already-played">
+  <h2>Du har redan spelat idag! 🌟</h2>
+  <div style="font-size:4rem">😴</div>
+  <p>Kom tillbaka imorgon kl 17:00 för nya mattetal!</p>
+  <p id="todays-result"></p>
+</div>
+
+<script>
+  // ── Constants ──────────────────────────────────────────────────────────────
+
+  const TOTAL_QUESTIONS = 5;
+
+  // Level definitions: { maxA, maxB, ops, minResult }
+  const LEVELS = [
+    { label: 'Nivå 1 🐣', maxA: 3, maxB: 3, ops: ['+'],        minResult: 0 },
+    { label: 'Nivå 2 🐥', maxA: 5, maxB: 4, ops: ['+'],        minResult: 0 },
+    { label: 'Nivå 3 🐦', maxA: 6, maxB: 5, ops: ['+', '-'],   minResult: 0 },
+    { label: 'Nivå 4 🦅', maxA: 8, maxB: 6, ops: ['+', '-'],   minResult: 0 },
+    { label: 'Nivå 5 🚀', maxA:10, maxB: 8, ops: ['+', '-'],   minResult: 0 },
+    { label: 'Nivå 6 🌟', maxA:12, maxB:10, ops: ['+', '-'],   minResult: 0 },
+    { label: 'Nivå 7 🏆', maxA:15, maxB:12, ops: ['+', '-'],   minResult: 0 },
+  ];
+
+  const THEMES = [
+    '🦕','🚀','⚽','🍎','🐠','⭐','🐸','🍭','🦄','🐶','🐱','🍕',
+  ];
+
+  const CORRECT_MSGS = [
+    '🎉 Fantastiskt, Noel!', '⭐ Jättebra!', '🥳 WOW, rätt!',
+    '🎊 Du är grym!', '🌈 Toppen!', '💪 Precis rätt!', '🦸 Superhjälte!',
+  ];
+
+  const WRONG_MSGS = [
+    '😅 Försök igen!', '🤔 Nästan! Prova en annan.', '💪 Du klarar det!',
+  ];
+
+  // ── State ──────────────────────────────────────────────────────────────────
+
+  function loadState() {
+    try {
+      const s = localStorage.getItem('noel_mattestate');
+      return s ? JSON.parse(s) : null;
+    } catch { return null; }
+  }
+
+  function saveState(state) {
+    localStorage.setItem('noel_mattestate', JSON.stringify(state));
+  }
+
+  function todayStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+
+  let state = loadState() || {
+    level: 0,           // index into LEVELS
+    lastPlayDate: null,
+    streak: 0,          // consecutive days with ≥4/5 correct
+  };
+
+  // Clamp level
+  state.level = Math.max(0, Math.min(state.level, LEVELS.length - 1));
+
+  // Check if already played today
+  if (state.lastPlayDate === todayStr()) {
+    showAlreadyPlayed();
+  } else {
+    startGame();
+  }
+
+  // ── Game logic ─────────────────────────────────────────────────────────────
+
+  let sessionAnswers = [];   // true/false per question
+  let currentAnswer  = 0;
+  let questionIndex  = 0;
+  let answered       = false;
+  let currentTheme   = '🦕';
+
+  function startGame() {
+    document.getElementById('level-badge').textContent = LEVELS[state.level].label;
+    buildDots();
+    nextQuestion();
+  }
+
+  function buildDots() {
+    const container = document.getElementById('progress-dots');
+    container.innerHTML = '';
+    for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'dot' + (i === questionIndex ? ' current' : '');
+      dot.id = `dot-${i}`;
+      container.appendChild(dot);
+    }
+  }
+
+  function updateDot(index, correct) {
+    const dot = document.getElementById(`dot-${index}`);
+    if (dot) {
+      dot.className = 'dot ' + (correct ? 'done-right' : 'done-wrong');
+    }
+    const next = document.getElementById(`dot-${index + 1}`);
+    if (next) next.classList.add('current');
+  }
+
+  function randInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function makeQuestion() {
+    const lvl = LEVELS[state.level];
+    const op  = lvl.ops[Math.floor(Math.random() * lvl.ops.length)];
+    let a, b;
+    if (op === '+') {
+      a = randInt(1, lvl.maxA);
+      b = randInt(1, Math.min(lvl.maxB, 15 - a)); // keep sum ≤ 15 on low levels
+      return { a, b, op: '+', answer: a + b };
+    } else {
+      a = randInt(2, lvl.maxA);
+      b = randInt(1, Math.min(a - 1, lvl.maxB));
+      return { a, b, op: '−', answer: a - b };
+    }
+  }
+
+  function generateOptions(answer) {
+    const opts = new Set([answer]);
+    let attempts = 0;
+    while (opts.size < 4 && attempts < 50) {
+      attempts++;
+      const delta = randInt(-3, 3);
+      const c = answer + delta;
+      if (c >= 0 && c !== answer) opts.add(c);
+    }
+    return [...opts].sort(() => Math.random() - 0.5);
+  }
+
+  function nextQuestion() {
+    if (questionIndex >= TOTAL_QUESTIONS) {
+      showSummary();
+      return;
+    }
+
+    answered = false;
+    document.getElementById('feedback').textContent = '';
+    document.getElementById('next-btn').style.display = 'none';
+
+    // Pick random theme per question
+    currentTheme = THEMES[Math.floor(Math.random() * THEMES.length)];
+    document.getElementById('theme-emoji').textContent = currentTheme;
+
+    const q = makeQuestion();
+    currentAnswer = q.answer;
+
+    // Visual representation
+    const visA = currentTheme.repeat(q.a);
+    const visB = currentTheme.repeat(q.b);
+    document.getElementById('visual-row').innerHTML =
+      q.op === '+' ? `${visA} ➕ ${visB}` : `${visA} ➖ ${visB}`;
+
+    document.getElementById('question').textContent =
+      `${q.a} ${q.op} ${q.b} = ?`;
+
+    const options = generateOptions(currentAnswer);
+    const container = document.getElementById('options');
+    container.innerHTML = '';
+    options.forEach(val => {
+      const btn = document.createElement('button');
+      btn.className = 'opt-btn';
+      btn.textContent = val;
+      btn.onclick = () => checkAnswer(val, btn);
+      container.appendChild(btn);
+    });
+  }
+
+  function checkAnswer(val, btn) {
+    if (answered) return;
+    answered = true;
+
+    const correct = val === currentAnswer;
+    sessionAnswers.push(correct);
+
+    const allBtns = document.querySelectorAll('.opt-btn');
+    allBtns.forEach(b => b.style.pointerEvents = 'none');
+
+    if (correct) {
+      btn.classList.add('correct');
+      document.getElementById('feedback').textContent =
+        CORRECT_MSGS[Math.floor(Math.random() * CORRECT_MSGS.length)];
+      launchConfetti();
+    } else {
+      btn.classList.add('wrong');
+      allBtns.forEach(b => {
+        if (parseInt(b.textContent) === currentAnswer) b.classList.add('correct');
+      });
+      document.getElementById('feedback').textContent =
+        WRONG_MSGS[Math.floor(Math.random() * WRONG_MSGS.length)];
+    }
+
+    updateDot(questionIndex, correct);
+    questionIndex++;
+
+    if (questionIndex >= TOTAL_QUESTIONS) {
+      setTimeout(showSummary, 1200);
+    } else {
+      document.getElementById('next-btn').style.display = 'block';
+    }
+  }
+
+  // ── Summary & level adjustment ─────────────────────────────────────────────
+
+  function showSummary() {
+    document.getElementById('card').style.display = 'none';
+    document.getElementById('progress-dots').style.display = 'none';
+
+    const correct = sessionAnswers.filter(Boolean).length;
+    const summary = document.getElementById('summary');
+    summary.style.display = 'flex';
+
+    // Score
+    const stars = '⭐'.repeat(correct) + '☆'.repeat(TOTAL_QUESTIONS - correct);
+    document.getElementById('summary-score').innerHTML =
+      `<div style="font-size:2rem">${stars}</div>
+       <div style="font-size:1.5rem;margin-top:8px">${correct} av ${TOTAL_QUESTIONS} rätt!</div>`;
+
+    // Level adjustment
+    let oldLevel = state.level;
+    let msg = '', msgClass = 'level-same', emoji = '😊';
+
+    if (correct >= 4) {
+      state.streak = (state.streak || 0) + 1;
+      if (correct === 5 && state.level < LEVELS.length - 1) {
+        state.level++;
+        msg = `🎉 Ny nivå! Nu kör vi ${LEVELS[state.level].label}`;
+        msgClass = 'level-up';
+        emoji = '🚀';
+        launchConfetti(); launchConfetti();
+      } else {
+        msg = `Bra jobbat! Du håller ${LEVELS[state.level].label}`;
+        msgClass = 'level-same';
+        emoji = '⭐';
+      }
+    } else if (correct <= 1 && state.level > 0) {
+      state.streak = 0;
+      state.level--;
+      msg = `Vi övar lite mer på ${LEVELS[state.level].label} – du fixar det!`;
+      msgClass = 'level-down';
+      emoji = '💪';
+    } else {
+      state.streak = 0;
+      msg = `Öva på ${LEVELS[state.level].label} – snart är du redo för nästa steg!`;
+      msgClass = 'level-same';
+      emoji = '💡';
+    }
+
+    state.lastPlayDate = todayStr();
+    state._lastScore = correct;
+    saveState(state);
+
+    document.getElementById('summary-emoji').textContent = emoji;
+    const lc = document.getElementById('level-change-msg');
+    lc.textContent = msg;
+    lc.className = `level-change ${msgClass}`;
+    document.getElementById('summary-text').textContent =
+      `Imorgon kl 17:00 kommer ${TOTAL_QUESTIONS} nya tal!`;
+  }
+
+  // ── Already played ─────────────────────────────────────────────────────────
+
+  function showAlreadyPlayed() {
+    document.getElementById('card').style.display = 'none';
+    document.getElementById('progress-dots').style.display = 'none';
+    document.getElementById('level-badge').textContent = LEVELS[state.level].label;
+
+    const ap = document.getElementById('already-played');
+    ap.style.display = 'flex';
+
+    const score = state._lastScore != null
+      ? `Igår fick du ${state._lastScore} av ${TOTAL_QUESTIONS} rätt ⭐`
+      : '';
+    document.getElementById('todays-result').textContent = score;
+  }
+
+  // ── Confetti ───────────────────────────────────────────────────────────────
+
+  function launchConfetti() {
+    const colors = ['#f7c948','#5b2d8e','#2ecc71','#e74c3c','#3498db','#ff69b4'];
+    for (let i = 0; i < 40; i++) {
+      const el = document.createElement('div');
+      el.className = 'confetti-piece';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.background = colors[Math.floor(Math.random() * colors.length)];
+      el.style.animationDuration = (1 + Math.random() * 1.5) + 's';
+      el.style.animationDelay = (Math.random() * 0.6) + 's';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 2600);
+    }
+  }
+</script>
+</body>
+</html>
