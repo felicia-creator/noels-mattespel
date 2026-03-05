@@ -262,7 +262,11 @@
     const d = new Date();
     return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
   }
-
+let sessionAnswers = [];   // true/false per question
+  let currentAnswer  = 0;
+  let questionIndex  = 0;
+  let answered       = false;
+  let currentTheme   = '🦕';
   // ── Init ───────────────────────────────────────────────────────────────────
 
   let state = loadState() || {
@@ -283,11 +287,7 @@
 
   // ── Game logic ─────────────────────────────────────────────────────────────
 
-  let sessionAnswers = [];   // true/false per question
-  let currentAnswer  = 0;
-  let questionIndex  = 0;
-  let answered       = false;
-  let currentTheme   = '🦕';
+  
 
   function startGame() {
     document.getElementById('level-badge').textContent = LEVELS[state.level].label;
